@@ -1,0 +1,42 @@
+name: 'Promote Container Image'
+description: 'Promote Container Image'
+inputs:
+  container-registry:
+    description: 'Container registry name'
+    required: true
+    default: 'ghcr.io'
+  image-name:
+    description: 'Container image name with full path (i.e.: ELCAIT-DevOps/js-angular/js-angular)'
+    required: true
+  current-image-tag:
+    description: 'Current container image tag'
+    required: true
+  new-image-tag:
+    description: 'New tag to add to the container image'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Set GitHub Container Registry URL'
+      shell: bash
+      run: echo "CONTAINER_REGISTRY_URL=${{ inputs.container-registry }}" >> ${GITHUB_ENV}
+
+    - name: 'Set Container Image Name'
+      shell: bash
+      run: |
+        CONTAINER_IMAGE_REPOSITORY_NOT_ALL_LOWERCASE=${{ inputs.image-name }}
+        echo "CONTAINER_IMAGE_REPOSITORY=${CONTAINER_IMAGE_REPOSITORY_NOT_ALL_LOWERCASE,,}" >> ${GITHUB_ENV}
+
+    - name: 'Log in to GitHub Container Registry'
+      uses: docker/login-action@v2.0.0
+      with:
+        registry: ${{ env.CONTAINER_REGISTRY_URL }}
+        username: ${{ github.actor }}
+        password: ${{ env.GITHUB_TOKEN }}
+
+    - name: 'Promote Container Image'
+      shell: bash
+      run: |
+        docker pull ${{ env.CONTAINER_REGISTRY_URL }}/${{ env.CONTAINER_IMAGE_REPOSITORY }}:${{ inputs.current-image-tag }}
+        docker tag ${{ env.CONTAINER_REGISTRY_URL }}/${{ env.CONTAINER_IMAGE_REPOSITORY }}:${{ inputs.current-image-tag }} ${{ env.CONTAINER_REGISTRY_URL }}/${{ env.CONTAINER_IMAGE_REPOSITORY }}:${{ inputs.new-image-tag }}
+        docker push ${{ env.CONTAINER_REGISTRY_URL }}/${{ env.CONTAINER_IMAGE_REPOSITORY }}:${{ inputs.new-image-tag }}
